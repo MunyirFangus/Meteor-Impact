@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Meteor Madness Game</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: black;
+      margin: 0;
+    }
+    canvas {
+      border: 2px solid white;
+      background: #000;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="400" height="400"></canvas>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Player setup
+    let player = { x: 180, y: 350, w: 40, h: 40, speed: 5 };
+
+    // Meteors
+    let meteors = [];
+    function spawnMeteor() {
+      let size = 20 + Math.random() * 30; // random size
+      meteors.push({
+        x: Math.random() * (400 - size),
+        y: -size,
+        r: size / 2,
+        speed: 2 + Math.random() * 3
+      });
+    }
+
+    // Score
+    let score = 0;
+
+    // Controls
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") player.x -= player.speed;
+      if (e.key === "ArrowRight") player.x += player.speed;
+    });
+
+    function drawPlayer() {
+      ctx.fillStyle = "lime";
+      ctx.fillRect(player.x, player.y, player.w, player.h);
+    }
+
+    function drawMeteors() {
+      ctx.fillStyle = "brown";
+      for (let m of meteors) {
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function updateMeteors() {
+      for (let m of meteors) {
+        m.y += m.speed;
+        // Collision check
+        if (
+          m.x - m.r < player.x + player.w &&
+          m.x + m.r > player.x &&
+          m.y - m.r < player.y + player.h &&
+          m.y + m.r > player.y
+        ) {
+          alert("💥 Game Over! Final Score: " + score);
+          document.location.reload();
+        }
+      }
+      meteors = meteors.filter(m => m.y < 400); // remove off-screen
+    }
+
+    function drawScore() {
+      ctx.fillStyle = "white";
+      ctx.font = "16px Arial";
+      ctx.fillText("Score: " + score, 10, 20);
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawPlayer();
+      drawMeteors();
+      updateMeteors();
+      drawScore();
+      score++;
+      requestAnimationFrame(gameLoop);
+    }
+
+    setInterval(spawnMeteor, 1200);
+    gameLoop();
+  </script>
+</body>
+</html>
