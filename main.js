@@ -9,7 +9,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0x000000);
 document.body.appendChild(renderer.domElement);
 
-// === Controls ===
+// === Controls (r158) ===
 const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
@@ -27,7 +27,7 @@ const earthMat = new THREE.MeshPhongMaterial({ color: 0x2266cc });
 const earth = new THREE.Mesh(earthGeo, earthMat);
 scene.add(earth);
 
-// === Continents (faint green overlay) ===
+// === Continents overlay ===
 const landGeo = new THREE.SphereGeometry(5.01, 128, 128);
 const landMat = new THREE.MeshPhongMaterial({ color: 0x228833, transparent:true, opacity:0.3 });
 const land = new THREE.Mesh(landGeo, landMat);
@@ -181,7 +181,7 @@ function animate(){
 }
 animate();
 
-// === Handle window resize ===
+// === Window resize ===
 window.addEventListener('resize', ()=>{
     camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
