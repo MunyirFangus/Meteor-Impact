@@ -1,4 +1,4 @@
-// Use CDN URLs for Three.js and OrbitControls
+// ✅ CDN imports — no bare module specifier errors
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
 
@@ -28,28 +28,26 @@ const light = new THREE.PointLight(0xffffff, 1);
 light.position.set(50, 50, 50);
 scene.add(light);
 
-// Load Earth texture (remote)
+// Earth texture
 const loader = new THREE.TextureLoader();
 const earthTexture = loader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
 
-// Earth
+// Earth mesh
 const earthGeometry = new THREE.SphereGeometry(20, 64, 64);
 const earthMaterial = new THREE.MeshPhongMaterial({ map: earthTexture });
 const earth = new THREE.Mesh(earthGeometry, earthMaterial);
 scene.add(earth);
 
-// Meteor parameters (adjustable)
-let meteorSize = 2;    // initial size
-let meteorSpeed = 0.7; // initial speed
-
 // Meteor
+let meteorSize = 2;    // adjustable
+let meteorSpeed = 0.7; // adjustable
 const meteorGeometry = new THREE.SphereGeometry(meteorSize, 16, 16);
 const meteorMaterial = new THREE.MeshPhongMaterial({ color: 0xff4422 });
 const meteor = new THREE.Mesh(meteorGeometry, meteorMaterial);
 meteor.position.set(50, 50, -100);
 scene.add(meteor);
 
-// Explosion effect
+// Explosion
 const explosionGeometry = new THREE.SphereGeometry(1, 32, 32);
 const explosionMaterial = new THREE.MeshBasicMaterial({
     color: 0xffaa00,
@@ -60,11 +58,11 @@ const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
 explosion.visible = false;
 scene.add(explosion);
 
-// Animate
+// Animate loop
 function animate() {
     requestAnimationFrame(animate);
 
-    // Rotate Earth slowly
+    // Rotate Earth
     earth.rotation.y += 0.001;
 
     // Meteor movement
@@ -72,10 +70,10 @@ function animate() {
         meteor.position.z += meteorSpeed;
         meteor.position.y -= meteorSpeed * 0.07;
     } else {
-        // Impact detected
+        // Impact
         explosion.position.copy(meteor.position);
         explosion.visible = true;
-        explosion.scale.addScalar(0.5); // grow explosion
+        explosion.scale.addScalar(0.5);
         meteor.visible = false;
     }
 
@@ -85,14 +83,14 @@ function animate() {
 
 animate();
 
-// Handle window resize
+// Resize
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / (window.innerHeight * 0.8);
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight * 0.8);
 });
 
-// Optional: adjust meteor size & speed live via console
+// Optional console control
 window.setMeteor = (size, speed) => {
     meteor.scale.set(size / meteorSize, size / meteorSize, size / meteorSize);
     meteorSize = size;
