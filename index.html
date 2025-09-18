@@ -3,56 +3,144 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Space Meteor — Rising of Impact</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Impactor-2025 — 3D Impact Visualization</title>
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#0b1020;color:#fff;font-family:sans-serif}
+    #ui{position:absolute;left:10px;top:10px;width:280px;padding:12px;background:rgba(0,0,0,0.5);border-radius:10px}
+    label{display:block;margin-top:10px;font-size:13px}
+    input,select{width:100%;margin-top:4px;padding:6px;border-radius:6px;border:1px solid #444;background:#111;color:#fff}
+    canvas{display:block;width:100%;height:100%}
+    button{margin-top:12px;width:100%;padding:8px;background:#222;color:#fff;border:1px solid #555;border-radius:6px;cursor:pointer}
+    button:hover{background:#333}
+  </style>
 </head>
 <body>
-  <!-- Opening screen -->
-  <div class="screen" id="opening">
-    <h1 class="title">Space Meteor</h1>
-    <h2 class="subtitle">Rising of Impact</h2>
-    <div class="menu">
-      <button class="btn play" id="playBtn">Play</button>
-      <button class="btn credits" id="creditsBtn">Credits</button>
-    </div>
+  <div id="ui">
+    <h3>Impactor-2025</h3>
+
+    <label for="lat">Latitude</label>
+    <input id="lat" type="number" step="0.1" placeholder="Lat">
+
+    <label for="lng">Longitude</label>
+    <input id="lng" type="number" step="0.1" placeholder="Lng">
+
+    <label for="diam">Asteroid Diameter (m)</label>
+    <input id="diam" type="range" min="10" max="100000" value="1000">
+    <span id="diamVal">1000</span> m
+
+    <label for="vel">Velocity (km/s)</label>
+    <input id="vel" type="range" min="5" max="72" value="20">
+    <span id="velVal">20</span> km/s
+
+    <button id="simulate">Simulate</button>
   </div>
 
-  <!-- Credits screen -->
-  <div class="screen" id="credits" style="display:none;">
-    <h2>Credits</h2>
-    <p class="credits-text">
-      Prototype created for the Meteor Madness challenge.<br>
-      Built with HTML, CSS & JavaScript.<br><br>
-      Controls: Move mouse to aim, click or press SPACE to fire rockets.
-    </p>
-    <button class="btn play" id="backBtn">Back</button>
-  </div>
+  <canvas id="renderer"></canvas>
 
-  <!-- HUD + Game -->
-  <header class="hud">
-    <div class="hud-left">
-      <div>Score: <span id="score">0</span></div>
-      <div>Lives: <span id="lives">3</span></div>
-    </div>
-    <div class="hud-right">
-      <div>Planet Health: <span id="planetHealth">100</span>%</div>
-    </div>
-  </header>
+  <!-- ✅ Use full CDN paths for Three.js ES modules -->
+  <script type="module">
+    import * as THREE from "https://unpkg.com/three@0.150.1/build/three.module.js";
+    import { OrbitControls } from "https://unpkg.com/three@0.150.1/examples/jsm/controls/OrbitControls.js";
 
-  <main id="gameWrap">
-    <canvas id="gameCanvas"></canvas>
-    <div class="controls-panel">
-      <div><strong>Weapon:</strong> Rockets (click / SPACE)</div>
-      <div style="margin-top:8px">
-        <button id="pauseBtn" class="small">Pause</button>
-        <button id="restartBtn" class="small">Restart</button>
-      </div>
-      <div style="margin-top:12px;font-size:13px;color:#ddd">
-        Tip: shoot asteroids before they hit the planet. Bigger ones require multiple hits.
-      </div>
-    </div>
-  </main>
+    const canvas = document.getElementById("renderer");
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
 
-  <script src="game.js"></script>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 2000);
+    camera.position.set(0,0,400);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.AmbientLight(0xffffff,0.6));
+    const dir = new THREE.DirectionalLight(0xffffff,0.8);
+    dir.position.set(5,3,5);
+    scene.add(dir);
+
+    const R = 100;
+    const globeGroup = new THREE.Group();
+    scene.add(globeGroup);
+
+    const sphereGeom = new THREE.SphereGeometry(R,64,64);
+    const loader = new THREE.TextureLoader();
+    const earthMat = new THREE.MeshStandardMaterial({
+      map: loader.load("https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"),
+      roughness: 1
+    });
+    const earthMesh = new THREE.Mesh(sphereGeom, earthMat);
+    globeGroup.add(earthMesh);
+
+    const atmosphere = new THREE.Mesh(
+      new THREE.SphereGeometry(R*1.02,64,64),
+      new THREE.MeshBasicMaterial({color:0x66ccff,transparent:true,opacity:0.06})
+    );
+    globeGroup.add(atmosphere);
+
+    const impactGroup = new THREE.Group();
+    globeGroup.add(impactGroup);
+
+    function animate(){
+      requestAnimationFrame(animate);
+      controls.update();
+      globeGroup.rotation.y += 0.0008;
+      renderer.render(scene,camera);
+    }
+    animate();
+
+    const diam = document.getElementById("diam");
+    const diamVal = document.getElementById("diamVal");
+    diam.addEventListener("input",()=>diamVal.textContent=diam.value);
+    const vel = document.getElementById("vel");
+    const velVal = document.getElementById("velVal");
+    vel.addEventListener("input",()=>velVal.textContent=vel.value);
+
+    function latLngToVector3(lat,lng,radius){
+      const phi = (90-lat)*(Math.PI/180);
+      const theta = (lng+180)*(Math.PI/180);
+      const x = -radius * Math.sin(phi)*Math.cos(theta);
+      const z = radius * Math.sin(phi)*Math.sin(theta);
+      const y = radius * Math.cos(phi);
+      return new THREE.Vector3(x,y,z);
+    }
+
+    function simulateImpact(lat,lng,diameter,velocity){
+      impactGroup.clear();
+
+      const pos = latLngToVector3(lat,lng,R+0.1);
+
+      const craterGeom = new THREE.CircleGeometry(Math.log(diameter)*0.8, 32);
+      const craterMat = new THREE.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:0.6});
+      const crater = new THREE.Mesh(craterGeom, craterMat);
+      crater.lookAt(pos.clone().multiplyScalar(2));
+      crater.position.copy(pos);
+      impactGroup.add(crater);
+
+      const ringGeom = new THREE.RingGeometry(Math.log(diameter)*0.8, Math.log(diameter)*0.9, 64);
+      const ringMat = new THREE.MeshBasicMaterial({color:0xffff00,transparent:true,opacity:0.5,side:THREE.DoubleSide});
+      const ring = new THREE.Mesh(ringGeom, ringMat);
+      ring.lookAt(pos.clone().multiplyScalar(2));
+      ring.position.copy(pos);
+      impactGroup.add(ring);
+
+      let scale = 1;
+      function expand(){
+        if(!ring.parent) return;
+        scale += 0.02 + velocity/5000;
+        ring.scale.set(scale,scale,scale);
+        ring.material.opacity *= 0.96;
+        requestAnimationFrame(expand);
+      }
+      expand();
+    }
+
+    document.getElementById("simulate").addEventListener("click",()=>{
+      const lat = parseFloat(document.getElementById("lat").value)||0;
+      const lng = parseFloat(document.getElementById("lng").value)||0;
+      const d = parseFloat(diam.value);
+      const v = parseFloat(vel.value);
+      simulateImpact(lat,lng,d,v);
+    });
+  </script>
 </body>
 </html>
