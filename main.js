@@ -37,9 +37,9 @@ const earthMaterial = new THREE.MeshPhongMaterial({ map: earthTexture });
 const earth = new THREE.Mesh(earthGeometry, earthMaterial);
 scene.add(earth);
 
-// Meteor parameters (adjustable)
-const meteorSize = 2;      // size of meteor
-const meteorSpeed = 0.7;   // speed of meteor
+// Meteor parameters (innovative: adjustable)
+let meteorSize = 2;   // size
+let meteorSpeed = 0.7; // speed
 
 // Meteor
 const meteorGeometry = new THREE.SphereGeometry(meteorSize, 16, 16);
@@ -90,3 +90,10 @@ window.addEventListener('resize', () => {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight * 0.8);
 });
+
+// Optional: future innovation — allow meteor speed & size adjustment via console
+window.setMeteor = (size, speed) => {
+    meteor.scale.set(size / meteorSize, size / meteorSize, size / meteorSize);
+    meteorSize = size;
+    meteorSpeed = speed;
+};
