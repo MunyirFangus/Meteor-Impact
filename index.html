@@ -1,101 +1,192 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+
+<html lang="en">
 <head>
-  <title>Meteor Madness Game</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Asteroid Impact Simulator — Simple Prototype</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-sA+e2YpG7m2G5x7p0y9k7r7JkV1p2b9v0s+Z6bq0h3s=" crossorigin=""/>
   <style>
-    body {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      background: black;
-      margin: 0;
-    }
-    canvas {
-      border: 2px solid white;
-      background: #000;
-    }
+    body{font-family:system-ui,Arial;margin:0;display:flex;flex-direction:column;height:100vh}
+    header{padding:10px;background:#0b3b5b;color:white}
+    main{display:grid;grid-template-columns:360px 1fr;flex:1;gap:10px}
+    #controls{padding:12px;overflow:auto}
+    label{display:block;margin-top:8px;font-weight:600}
+    input[type=range]{width:100%}
+    .row{display:flex;gap:8px;align-items:center}
+    #map{height:100%;width:100%}
+    .output{background:#f6f8fa;padding:8px;border-radius:6px;margin-top:8px}
+    button{margin-top:8px;padding:8px 12px;border-radius:6px;border:0;background:#0b7dd0;color:white;cursor:pointer}
+    small{color:#666}
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="400" height="400"></canvas>
-  <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
+  <header>
+    <h2>Asteroid Impact Simulator — Prototype</h2>
+    <div style="font-size:13px">Click anywhere on the map to choose an impact location. This is a simplified model for education & prototyping.</div>
+  </header>
+  <main>
+    <section id="controls">
+      <label>Asteroid diameter: <span id="diamVal">50</span> m</label>
+      <input id="diam" type="range" min="1" max="1000" value="50"><label>Velocity at impact: <span id="velVal">20</span> km/s</label>
+  <input id="vel" type="range" min="1" max="70" value="20">
 
-    // Player setup
-    let player = { x: 180, y: 350, w: 40, h: 40, speed: 5 };
+  <label>Density (rock): <span id="densVal">3000</span> kg/m³</label>
+  <input id="dens" type="range" min="500" max="8000" value="3000">
 
-    // Meteors
-    let meteors = [];
-    function spawnMeteor() {
-      let size = 20 + Math.random() * 30; // random size
-      meteors.push({
-        x: Math.random() * (400 - size),
-        y: -size,
-        r: size / 2,
-        speed: 2 + Math.random() * 3
-      });
+  <label>Impact angle: <span id="angleVal">45</span>° (degrees from horizontal)</label>
+  <input id="angle" type="range" min="10" max="90" value="45">
+
+  <label>Local population density: <span id="popVal">1000</span> people/km²</label>
+  <input id="pop" type="range" min="0" max="20000" value="1000">
+  <small>Set low for rural, high for dense city.</small>
+
+  <label>Mitigation: reduce velocity by <span id="deflectVal">0</span>% (deflection effectiveness)</label>
+  <input id="deflect" type="range" min="0" max="99" value="0">
+
+  <div class="output">
+    <div><strong>Selected impact:</strong> <span id="latlon">(none)</span></div>
+    <div><strong>Kinetic energy:</strong> <span id="energy">—</span></div>
+    <div><strong>Estimated crater diameter:</strong> <span id="crater">—</span></div>
+    <div><strong>Estimated severe-damage radius:</strong> <span id="radius">—</span></div>
+    <div><strong>Estimated people affected:</strong> <span id="people">—</span></div>
+  </div>
+
+  <button id="run">Run simulation</button>
+  <button id="reset">Reset map marker</button>
+
+  <hr>
+  <div style="font-size:13px;color:#333">
+    <strong>Notes:</strong>
+    <ul>
+      <li>This is a simplified educational model (not for operational use).</li>
+      <li>Formulas use rough empirical scaling: crater scales with energy.<br>Energy computed from mass (sphere) and velocity: E = 0.5 * m * v².</li>
+      <li>Deflection reduces velocity — energy scales with v², so small velocity changes matter a lot.</li>
+    </ul>
+  </div>
+</section>
+
+<div id="map"></div>
+
+  </main>  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9N1j7k2q2Qw8qHjv3k4fKxg4mV6Y5j1qv7q6k9e0XY=" crossorigin=""></script>  <script>
+    // --- simple UI wiring ---
+    const diam = document.getElementById('diam');
+    const vel = document.getElementById('vel');
+    const dens = document.getElementById('dens');
+    const angle = document.getElementById('angle');
+    const pop = document.getElementById('pop');
+    const deflect = document.getElementById('deflect');
+
+    const diamVal = document.getElementById('diamVal');
+    const velVal = document.getElementById('velVal');
+    const densVal = document.getElementById('densVal');
+    const angleVal = document.getElementById('angleVal');
+    const popVal = document.getElementById('popVal');
+    const deflectVal = document.getElementById('deflectVal');
+
+    const latlon = document.getElementById('latlon');
+    const energyOut = document.getElementById('energy');
+    const craterOut = document.getElementById('crater');
+    const radiusOut = document.getElementById('radius');
+    const peopleOut = document.getElementById('people');
+
+    function updateLabels(){
+      diamVal.textContent = diam.value;
+      velVal.textContent = vel.value;
+      densVal.textContent = dens.value;
+      angleVal.textContent = angle.value;
+      popVal.textContent = pop.value;
+      deflectVal.textContent = deflect.value;
+    }
+    [diam,vel,dens,angle,pop,deflect].forEach(el=>el.addEventListener('input',updateLabels));
+    updateLabels();
+
+    // --- leaflet map ---
+    const map = L.map('map').setView([20,0],2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      maxZoom:19,
+      attribution:'© OpenStreetMap'
+    }).addTo(map);
+
+    let marker = null;
+    let circle = null;
+
+    function setMarker(latlng){
+      if(marker) marker.setLatLng(latlng);
+      else marker = L.marker(latlng).addTo(map);
+      latlon.textContent = latlng.lat.toFixed(4)+', '+latlng.lng.toFixed(4);
     }
 
-    // Score
-    let score = 0;
-
-    // Controls
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowLeft") player.x -= player.speed;
-      if (e.key === "ArrowRight") player.x += player.speed;
+    map.on('click', e=>{
+      setMarker(e.latlng);
     });
 
-    function drawPlayer() {
-      ctx.fillStyle = "lime";
-      ctx.fillRect(player.x, player.y, player.w, player.h);
+    document.getElementById('reset').addEventListener('click',()=>{
+      if(marker){map.removeLayer(marker); marker=null;}
+      if(circle){map.removeLayer(circle); circle=null;}
+      latlon.textContent='(none)';
+      energyOut.textContent='—'; craterOut.textContent='—'; radiusOut.textContent='—'; peopleOut.textContent='—';
+    });
+
+    // --- physics & simple scaling ---
+    function runModel(){
+      if(!marker){alert('Click on the map to select an impact point first.'); return}
+
+      // inputs
+      const D = parseFloat(diam.value); // meters
+      const v_km_s = parseFloat(vel.value);
+      const v = v_km_s * 1000.0; // m/s
+      const rho = parseFloat(dens.value); // kg/m3
+      const theta_deg = parseFloat(angle.value);
+      const pd = parseFloat(pop.value); // people/km2
+      const def = parseFloat(deflect.value)/100.0; // fraction
+
+      // mass (sphere)
+      const r = D/2.0;
+      const volume = (4/3)*Math.PI*Math.pow(r,3);
+      const mass = rho * volume; // kg
+
+      // apply deflection: reduce velocity
+      const v_effective = v * (1 - def);
+
+      // kinetic energy (Joules)
+      const E = 0.5 * mass * v_effective * v_effective;
+
+      // Simple empirical scaling: crater diameter ~ scale * E^(1/4)
+      // This is a rough educational approximation (not for operations).
+      const crater_k = 0.1; // tuning constant
+      const crater_m = crater_k * Math.pow(E, 0.25);
+
+      // severe-damage radius (m) roughly half the crater diameter scaled up a bit
+      const severeR = Math.max(100, crater_m * 0.6);
+
+      // people affected: area * pop density (pop per km2)
+      const area_km2 = Math.PI * Math.pow(severeR/1000.0,2);
+      const people = Math.round(area_km2 * pd);
+
+      // outputs to UI
+      energyOut.textContent = formatSI(E) + ' J';
+      craterOut.textContent = Math.round(crater_m) + ' m';
+      radiusOut.textContent = Math.round(severeR) + ' m';
+      peopleOut.textContent = people.toLocaleString();
+
+      // draw circle on map
+      if(circle) map.removeLayer(circle);
+      circle = L.circle(marker.getLatLng(), {radius: severeR, color:'#d9534f', fill:false}).addTo(map);
+      map.fitBounds(circle.getBounds(), {maxZoom:8});
     }
 
-    function drawMeteors() {
-      ctx.fillStyle = "brown";
-      for (let m of meteors) {
-        ctx.beginPath();
-        ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
-        ctx.fill();
-      }
+    document.getElementById('run').addEventListener('click', runModel);
+
+    // utility: format large numbers
+    function formatSI(num){
+      if(num===0) return '0';
+      const tier = Math.floor(Math.log10(Math.abs(num))/3);
+      const units = ['','k','M','G','T','P'];
+      const unit = units[Math.min(tier, units.length-1)];
+      const scale = Math.pow(10, tier*3);
+      return (num/scale).toFixed(2) + ' ' + unit;
     }
 
-    function updateMeteors() {
-      for (let m of meteors) {
-        m.y += m.speed;
-        // Collision check
-        if (
-          m.x - m.r < player.x + player.w &&
-          m.x + m.r > player.x &&
-          m.y - m.r < player.y + player.h &&
-          m.y + m.r > player.y
-        ) {
-          alert("💥 Game Over! Final Score: " + score);
-          document.location.reload();
-        }
-      }
-      meteors = meteors.filter(m => m.y < 400); // remove off-screen
-    }
-
-    function drawScore() {
-      ctx.fillStyle = "white";
-      ctx.font = "16px Arial";
-      ctx.fillText("Score: " + score, 10, 20);
-    }
-
-    function gameLoop() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawPlayer();
-      drawMeteors();
-      updateMeteors();
-      drawScore();
-      score++;
-      requestAnimationFrame(gameLoop);
-    }
-
-    setInterval(spawnMeteor, 1200);
-    gameLoop();
-  </script>
-</body>
+  </script></body>
 </html>
