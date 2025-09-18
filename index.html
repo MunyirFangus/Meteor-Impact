@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Space Meteor — Rising of Impact</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Opening screen -->
+  <div class="screen" id="opening">
+    <h1 class="title">Space Meteor</h1>
+    <h2 class="subtitle">Rising of Impact</h2>
+    <div class="menu">
+      <button class="btn play" id="playBtn">Play</button>
+      <button class="btn credits" id="creditsBtn">Credits</button>
+    </div>
+  </div>
+
+  <!-- Credits screen -->
+  <div class="screen" id="credits" style="display:none;">
+    <h2>Credits</h2>
+    <p class="credits-text">
+      Prototype created for the Meteor Madness challenge.<br>
+      Built with HTML, CSS & JavaScript.<br><br>
+      Controls: Move mouse to aim, click or press SPACE to fire rockets.
+    </p>
+    <button class="btn play" id="backBtn">Back</button>
+  </div>
+
+  <!-- HUD + Game -->
+  <header class="hud">
+    <div class="hud-left">
+      <div>Score: <span id="score">0</span></div>
+      <div>Lives: <span id="lives">3</span></div>
+    </div>
+    <div class="hud-right">
+      <div>Planet Health: <span id="planetHealth">100</span>%</div>
+    </div>
+  </header>
+
+  <main id="gameWrap">
+    <canvas id="gameCanvas"></canvas>
+    <div class="controls-panel">
+      <div><strong>Weapon:</strong> Rockets (click / SPACE)</div>
+      <div style="margin-top:8px">
+        <button id="pauseBtn" class="small">Pause</button>
+        <button id="restartBtn" class="small">Restart</button>
+      </div>
+      <div style="margin-top:12px;font-size:13px;color:#ddd">
+        Tip: shoot asteroids before they hit the planet. Bigger ones require multiple hits.
+      </div>
+    </div>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
