@@ -2,17 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Asteroid Test</title>
+  <title>Asteroid Simulation</title>
   <style>
     body { margin: 0; overflow: hidden; background: black; }
     canvas { display: block; }
   </style>
 </head>
 <body>
-  <script type="module">
-    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.module.js";
-    import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.152.2/examples/jsm/controls/OrbitControls.js";
+  <!-- ✅ Load three.js r148 and OrbitControls directly -->
+  <script src="https://unpkg.com/three@0.148.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.148.0/examples/js/controls/OrbitControls.js"></script>
 
+  <script>
     // --- Scene ---
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
@@ -27,7 +28,7 @@
     document.body.appendChild(renderer.domElement);
 
     // --- Controls ---
-    const controls = new OrbitControls(camera, renderer.domElement);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
     // --- Earth ---
     const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
