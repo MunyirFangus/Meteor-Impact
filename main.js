@@ -2,7 +2,7 @@
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0, 8, 12);
-camera.lookAt(0, 0, 0);
+camera.lookAt(0,0,0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -15,18 +15,19 @@ controls.enableDamping = true;
 
 // === Lighting ===
 const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-dirLight.position.set(10, 10, 10);
+dirLight.position.set(10,10,10);
 scene.add(dirLight);
+
 const ambientLight = new THREE.AmbientLight(0x333333);
 scene.add(ambientLight);
 
-// === Earth (blue sphere) ===
+// === Earth ===
 const earthGeo = new THREE.SphereGeometry(5, 128, 128);
 const earthMat = new THREE.MeshPhongMaterial({ color: 0x2266cc });
 const earth = new THREE.Mesh(earthGeo, earthMat);
 scene.add(earth);
 
-// === Fake continents ===
+// === Continents (faint green overlay) ===
 const landGeo = new THREE.SphereGeometry(5.01, 128, 128);
 const landMat = new THREE.MeshPhongMaterial({ color: 0x228833, transparent:true, opacity:0.3 });
 const land = new THREE.Mesh(landGeo, landMat);
