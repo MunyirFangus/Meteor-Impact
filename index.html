@@ -1,145 +1,148 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Impactor-2025 — 3D Impact Visualization</title>
+  <meta charset="UTF-8" />
+  <title>Asteroid Impact Simulator</title>
   <style>
-    html,body{margin:0;height:100%;overflow:hidden;background:#0b1020;color:#fff;font-family:sans-serif}
-    #ui{position:absolute;left:10px;top:10px;width:280px;padding:12px;background:rgba(0,0,0,0.5);border-radius:10px}
-    label{display:block;margin-top:10px;font-size:13px}
-    input,select{width:100%;margin-top:4px;padding:6px;border-radius:6px;border:1px solid #444;background:#111;color:#fff}
-    canvas{display:block;width:100%;height:100%}
-    button{margin-top:12px;width:100%;padding:8px;background:#222;color:#fff;border:1px solid #555;border-radius:6px;cursor:pointer}
-    button:hover{background:#333}
+    body { margin: 0; overflow: hidden; background: black; color: white; font-family: sans-serif; }
+    #ui {
+      position: absolute; top: 10px; left: 10px; z-index: 10;
+      background: rgba(0,0,0,0.6); padding: 10px; border-radius: 8px;
+    }
+    label, select, button { margin: 5px; }
   </style>
 </head>
 <body>
   <div id="ui">
-    <h3>Impactor-2025</h3>
+    <label>Asteroid Size:</label>
+    <select id="size">
+      <option value="0.1">Small</option>
+      <option value="0.3">Medium</option>
+      <option value="0.6">Large</option>
+    </select><br>
 
-    <label for="lat">Latitude</label>
-    <input id="lat" type="number" step="0.1" placeholder="Lat">
+    <label>Speed:</label>
+    <select id="speed">
+      <option value="0.02">Slow</option>
+      <option value="0.05">Medium</option>
+      <option value="0.1">Fast</option>
+    </select><br>
 
-    <label for="lng">Longitude</label>
-    <input id="lng" type="number" step="0.1" placeholder="Lng">
-
-    <label for="diam">Asteroid Diameter (m)</label>
-    <input id="diam" type="range" min="10" max="100000" value="1000">
-    <span id="diamVal">1000</span> m
-
-    <label for="vel">Velocity (km/s)</label>
-    <input id="vel" type="range" min="5" max="72" value="20">
-    <span id="velVal">20</span> km/s
-
-    <button id="simulate">Simulate</button>
+    <button id="launch">Launch Asteroid</button>
+    <button id="reset">Reset</button>
   </div>
 
-  <canvas id="renderer"></canvas>
-
-  <!-- ✅ Use full CDN paths for Three.js ES modules -->
   <script type="module">
-    import * as THREE from "https://unpkg.com/three@0.150.1/build/three.module.js";
-    import { OrbitControls } from "https://unpkg.com/three@0.150.1/examples/jsm/controls/OrbitControls.js";
+    import * as THREE from "https://unpkg.com/three@0.152.2/build/three.module.js";
+    import { OrbitControls } from "https://unpkg.com/three@0.152.2/examples/jsm/controls/OrbitControls.js";
 
-    const canvas = document.getElementById("renderer");
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-
+    // --- Scene Setup ---
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 2000);
-    camera.position.set(0,0,400);
+    scene.background = new THREE.Color(0x000000);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 2, 6);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
 
-    scene.add(new THREE.AmbientLight(0xffffff,0.6));
-    const dir = new THREE.DirectionalLight(0xffffff,0.8);
-    dir.position.set(5,3,5);
-    scene.add(dir);
+    // --- Earth ---
+    const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
+    const earthMaterial = new THREE.MeshStandardMaterial({ color: 0x2266ff });
+    const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+    scene.add(earth);
 
-    const R = 100;
-    const globeGroup = new THREE.Group();
-    scene.add(globeGroup);
+    // --- Lights ---
+    const light = new THREE.PointLight(0xffffff, 2);
+    light.position.set(5, 5, 5);
+    scene.add(light);
+    scene.add(new THREE.AmbientLight(0x404040));
 
-    const sphereGeom = new THREE.SphereGeometry(R,64,64);
-    const loader = new THREE.TextureLoader();
-    const earthMat = new THREE.MeshStandardMaterial({
-      map: loader.load("https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"),
-      roughness: 1
-    });
-    const earthMesh = new THREE.Mesh(sphereGeom, earthMat);
-    globeGroup.add(earthMesh);
+    // --- Asteroid ---
+    let asteroid, asteroidSpeed = 0.02, asteroidActive = false;
 
-    const atmosphere = new THREE.Mesh(
-      new THREE.SphereGeometry(R*1.02,64,64),
-      new THREE.MeshBasicMaterial({color:0x66ccff,transparent:true,opacity:0.06})
-    );
-    globeGroup.add(atmosphere);
+    function createAsteroid(size) {
+      const asteroidGeometry = new THREE.SphereGeometry(size, 32, 32);
+      const asteroidMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+      asteroid = new THREE.Mesh(asteroidGeometry, asteroidMaterial);
+      asteroid.position.set(-6, 0, 0);
+      scene.add(asteroid);
+    }
 
-    const impactGroup = new THREE.Group();
-    globeGroup.add(impactGroup);
+    // --- Explosion Effect ---
+    const particles = [];
+    function createExplosion(position) {
+      const particleGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+      const particleMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+      for (let i = 0; i < 50; i++) {
+        const p = new THREE.Mesh(particleGeometry, particleMaterial);
+        p.position.copy(position);
+        p.velocity = new THREE.Vector3(
+          (Math.random() - 0.5) * 0.2,
+          (Math.random() - 0.5) * 0.2,
+          (Math.random() - 0.5) * 0.2
+        );
+        scene.add(p);
+        particles.push(p);
+      }
+    }
 
-    function animate(){
+    // --- Animate ---
+    function animate() {
       requestAnimationFrame(animate);
+
+      if (asteroidActive && asteroid) {
+        asteroid.position.x += asteroidSpeed;
+
+        // Check collision with Earth
+        if (asteroid.position.distanceTo(earth.position) < 1.1) {
+          asteroidActive = false;
+          scene.remove(asteroid);
+          createExplosion(earth.position.clone());
+          earth.material.color.set(0xff4444); // Earth damaged
+        }
+      }
+
+      // Update particles
+      for (let p of particles) {
+        p.position.add(p.velocity);
+        p.material.opacity -= 0.01;
+      }
+
       controls.update();
-      globeGroup.rotation.y += 0.0008;
-      renderer.render(scene,camera);
+      renderer.render(scene, camera);
     }
     animate();
 
-    const diam = document.getElementById("diam");
-    const diamVal = document.getElementById("diamVal");
-    diam.addEventListener("input",()=>diamVal.textContent=diam.value);
-    const vel = document.getElementById("vel");
-    const velVal = document.getElementById("velVal");
-    vel.addEventListener("input",()=>velVal.textContent=vel.value);
+    // --- UI Events ---
+    document.getElementById("launch").onclick = () => {
+      if (asteroid) scene.remove(asteroid);
+      earth.material.color.set(0x2266ff); // reset Earth color
+      particles.forEach(p => scene.remove(p));
+      particles.length = 0;
 
-    function latLngToVector3(lat,lng,radius){
-      const phi = (90-lat)*(Math.PI/180);
-      const theta = (lng+180)*(Math.PI/180);
-      const x = -radius * Math.sin(phi)*Math.cos(theta);
-      const z = radius * Math.sin(phi)*Math.sin(theta);
-      const y = radius * Math.cos(phi);
-      return new THREE.Vector3(x,y,z);
-    }
+      const size = parseFloat(document.getElementById("size").value);
+      asteroidSpeed = parseFloat(document.getElementById("speed").value);
+      createAsteroid(size);
+      asteroidActive = true;
+    };
 
-    function simulateImpact(lat,lng,diameter,velocity){
-      impactGroup.clear();
+    document.getElementById("reset").onclick = () => {
+      if (asteroid) scene.remove(asteroid);
+      particles.forEach(p => scene.remove(p));
+      particles.length = 0;
+      earth.material.color.set(0x2266ff);
+      asteroidActive = false;
+    };
 
-      const pos = latLngToVector3(lat,lng,R+0.1);
-
-      const craterGeom = new THREE.CircleGeometry(Math.log(diameter)*0.8, 32);
-      const craterMat = new THREE.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:0.6});
-      const crater = new THREE.Mesh(craterGeom, craterMat);
-      crater.lookAt(pos.clone().multiplyScalar(2));
-      crater.position.copy(pos);
-      impactGroup.add(crater);
-
-      const ringGeom = new THREE.RingGeometry(Math.log(diameter)*0.8, Math.log(diameter)*0.9, 64);
-      const ringMat = new THREE.MeshBasicMaterial({color:0xffff00,transparent:true,opacity:0.5,side:THREE.DoubleSide});
-      const ring = new THREE.Mesh(ringGeom, ringMat);
-      ring.lookAt(pos.clone().multiplyScalar(2));
-      ring.position.copy(pos);
-      impactGroup.add(ring);
-
-      let scale = 1;
-      function expand(){
-        if(!ring.parent) return;
-        scale += 0.02 + velocity/5000;
-        ring.scale.set(scale,scale,scale);
-        ring.material.opacity *= 0.96;
-        requestAnimationFrame(expand);
-      }
-      expand();
-    }
-
-    document.getElementById("simulate").addEventListener("click",()=>{
-      const lat = parseFloat(document.getElementById("lat").value)||0;
-      const lng = parseFloat(document.getElementById("lng").value)||0;
-      const d = parseFloat(diam.value);
-      const v = parseFloat(vel.value);
-      simulateImpact(lat,lng,d,v);
+    // Resize
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
     });
   </script>
 </body>
