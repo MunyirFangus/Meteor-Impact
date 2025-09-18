@@ -1,3 +1,4 @@
+// Use CDN URLs for Three.js and OrbitControls
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
 
@@ -27,7 +28,7 @@ const light = new THREE.PointLight(0xffffff, 1);
 light.position.set(50, 50, 50);
 scene.add(light);
 
-// Load Earth texture
+// Load Earth texture (remote)
 const loader = new THREE.TextureLoader();
 const earthTexture = loader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
 
@@ -37,9 +38,9 @@ const earthMaterial = new THREE.MeshPhongMaterial({ map: earthTexture });
 const earth = new THREE.Mesh(earthGeometry, earthMaterial);
 scene.add(earth);
 
-// Meteor parameters (innovative: adjustable)
-let meteorSize = 2;   // size
-let meteorSpeed = 0.7; // speed
+// Meteor parameters (adjustable)
+let meteorSize = 2;    // initial size
+let meteorSpeed = 0.7; // initial speed
 
 // Meteor
 const meteorGeometry = new THREE.SphereGeometry(meteorSize, 16, 16);
@@ -63,7 +64,7 @@ scene.add(explosion);
 function animate() {
     requestAnimationFrame(animate);
 
-    // Rotate Earth
+    // Rotate Earth slowly
     earth.rotation.y += 0.001;
 
     // Meteor movement
@@ -84,14 +85,14 @@ function animate() {
 
 animate();
 
-// Handle resize
+// Handle window resize
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / (window.innerHeight * 0.8);
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight * 0.8);
 });
 
-// Optional: future innovation — allow meteor speed & size adjustment via console
+// Optional: adjust meteor size & speed live via console
 window.setMeteor = (size, speed) => {
     meteor.scale.set(size / meteorSize, size / meteorSize, size / meteorSize);
     meteorSize = size;
