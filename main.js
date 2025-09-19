@@ -7,46 +7,61 @@ canvas.height = window.innerHeight;
 const earth = {
   x: canvas.width/2,
   y: canvas.height/2,
-  radius: 200
+  radius: 200,
+  damageMap: [] // store damage impacts
 };
 
 // Meteor variables
 let meteors = [];
-let meteorSize = document.getElementById('size').value;
+const meteorTypeSelect = document.getElementById('meteorType');
 let meteorSpeed = document.getElementById('speed').value;
 
-// Update sliders
-document.getElementById('size').addEventListener('input', (e) => {
-  meteorSize = e.target.value;
-});
-document.getElementById('speed').addEventListener('input', (e) => {
-  meteorSpeed = e.target.value;
-});
+// Update speed slider
+document.getElementById('speed').addEventListener('input', e => meteorSpeed = e.target.value);
+
+// Determine meteor size by type
+function getMeteorSize(type){
+  switch(type){
+    case 'small': return 15;
+    case 'medium': return 30;
+    case 'large': return 50;
+    default: return 30;
+  }
+}
 
 // Click to launch meteor
-canvas.addEventListener('click', (e) => {
+canvas.addEventListener('click', e => {
+  const size = getMeteorSize(meteorTypeSelect.value);
   meteors.push({
     x: e.clientX,
     y: 0,
-    size: meteorSize,
+    size,
     speed: meteorSpeed
   });
 });
 
 // Draw Earth
-function drawEarth() {
+function drawEarth(){
   ctx.fillStyle = '#2233ff';
   ctx.beginPath();
   ctx.arc(earth.x, earth.y, earth.radius, 0, Math.PI*2);
   ctx.fill();
+
+  // Draw damage impacts
+  earth.damageMap.forEach(d=>{
+    ctx.fillStyle = d.color;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.size,0,Math.PI*2);
+    ctx.fill();
+  });
 }
 
 // Draw meteors
-function drawMeteors() {
+function drawMeteors(){
   meteors.forEach(m => {
     ctx.fillStyle = '#ff5500';
     ctx.beginPath();
-    ctx.arc(m.x, m.y, m.size, 0, Math.PI*2);
+    ctx.arc(m.x, m.y, m.size,0,Math.PI*2);
     ctx.fill();
 
     m.y += Number(m.speed);
@@ -55,7 +70,7 @@ function drawMeteors() {
     const dx = m.x - earth.x;
     const dy = m.y - earth.y;
     const distance = Math.sqrt(dx*dx + dy*dy);
-    if(distance < earth.radius) {
+    if(distance < earth.radius){
       createExplosion(m.x, m.y, m.size*2);
       meteors.splice(meteors.indexOf(m),1);
     }
@@ -65,6 +80,10 @@ function drawMeteors() {
 // Explosion
 let explosions = [];
 function createExplosion(x,y,radius){
+  // Add to visual damage map
+  earth.damageMap.push({x,y,size:radius/2, color:'rgba(255,170,0,0.6)'});
+
+  // Add animation
   explosions.push({x,y,radius,alpha:1});
 }
 
@@ -91,7 +110,7 @@ function animate(){
 
 animate();
 
-// Resize
+// Handle resize
 window.addEventListener('resize', ()=>{
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;

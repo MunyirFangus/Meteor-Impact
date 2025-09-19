@@ -7,8 +7,12 @@
 </head>
 <body>
   <div id="ui">
-    <label>Meteor Size:</label>
-    <input type="range" id="size" min="10" max="50" value="20">
+    <label>Select Meteor:</label>
+    <select id="meteorType">
+      <option value="small">Small</option>
+      <option value="medium" selected>Medium</option>
+      <option value="large">Large</option>
+    </select>
     <label>Speed:</label>
     <input type="range" id="speed" min="1" max="10" value="5">
   </div>
