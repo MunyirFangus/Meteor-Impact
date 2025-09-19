@@ -14,9 +14,6 @@ body {
 #ui label {
   margin-right: 5px;
 }
-#ui select, #ui input {
+#ui input {
   margin-right: 15px;
-}
-canvas {
-  display: block;
 }

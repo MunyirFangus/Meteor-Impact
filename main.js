@@ -1,117 +1,88 @@
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.156.0/build/three.module.js';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.156.0/examples/jsm/controls/OrbitControls.js';
 
-// Earth map
-const earth = {
-  x: canvas.width/2,
-  y: canvas.height/2,
-  radius: 200,
-  damageMap: [] // store damage impacts
-};
+// Scene setup
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(0, 10, 20);
 
-// Meteor variables
-let meteors = [];
-const meteorTypeSelect = document.getElementById('meteorType');
-let meteorSpeed = document.getElementById('speed').value;
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-// Update speed slider
-document.getElementById('speed').addEventListener('input', e => meteorSpeed = e.target.value);
+// Controls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
 
-// Determine meteor size by type
-function getMeteorSize(type){
-  switch(type){
-    case 'small': return 15;
-    case 'medium': return 30;
-    case 'large': return 50;
-    default: return 30;
-  }
-}
+// Lighting
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(10,10,10);
+scene.add(directionalLight);
+scene.add(new THREE.AmbientLight(0x404040,0.5));
 
-// Click to launch meteor
-canvas.addEventListener('click', e => {
-  const size = getMeteorSize(meteorTypeSelect.value);
-  meteors.push({
-    x: e.clientX,
-    y: 0,
-    size,
-    speed: meteorSpeed
-  });
+// Earth
+const earthGeometry = new THREE.SphereGeometry(5, 64, 64);
+const earthMaterial = new THREE.MeshPhongMaterial({color:0x2233ff});
+const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+scene.add(earth);
+
+// Meteor
+let meteor = null;
+let meteorVelocity = 0;
+
+// UI
+const sizeSlider = document.getElementById('size');
+const speedSlider = document.getElementById('speed');
+
+document.addEventListener('click', (event)=>{
+  if(meteor) scene.remove(meteor);
+
+  const size = parseFloat(sizeSlider.value);
+  meteorVelocity = parseFloat(speedSlider.value);
+
+  const meteorGeometry = new THREE.SphereGeometry(size,16,16);
+  const meteorMaterial = new THREE.MeshBasicMaterial({color:0xff5500});
+  meteor = new THREE.Mesh(meteorGeometry, meteorMaterial);
+
+  // Map click to 3D space roughly
+  meteor.position.set((Math.random()-0.5)*10, 15, (Math.random()-0.5)*10);
+  scene.add(meteor);
 });
 
-// Draw Earth
-function drawEarth(){
-  ctx.fillStyle = '#2233ff';
-  ctx.beginPath();
-  ctx.arc(earth.x, earth.y, earth.radius, 0, Math.PI*2);
-  ctx.fill();
-
-  // Draw damage impacts
-  earth.damageMap.forEach(d=>{
-    ctx.fillStyle = d.color;
-    ctx.beginPath();
-    ctx.arc(d.x, d.y, d.size,0,Math.PI*2);
-    ctx.fill();
-  });
-}
-
-// Draw meteors
-function drawMeteors(){
-  meteors.forEach(m => {
-    ctx.fillStyle = '#ff5500';
-    ctx.beginPath();
-    ctx.arc(m.x, m.y, m.size,0,Math.PI*2);
-    ctx.fill();
-
-    m.y += Number(m.speed);
-
-    // Check collision with Earth
-    const dx = m.x - earth.x;
-    const dy = m.y - earth.y;
-    const distance = Math.sqrt(dx*dx + dy*dy);
-    if(distance < earth.radius){
-      createExplosion(m.x, m.y, m.size*2);
-      meteors.splice(meteors.indexOf(m),1);
-    }
-  });
-}
-
 // Explosion
-let explosions = [];
-function createExplosion(x,y,radius){
-  // Add to visual damage map
-  earth.damageMap.push({x,y,size:radius/2, color:'rgba(255,170,0,0.6)'});
-
-  // Add animation
-  explosions.push({x,y,radius,alpha:1});
+function createExplosion(position, radius){
+  const geometry = new THREE.SphereGeometry(radius,32,32);
+  const material = new THREE.MeshBasicMaterial({color:0xffaa00, transparent:true, opacity:0.6});
+  const explosion = new THREE.Mesh(geometry, material);
+  explosion.position.copy(position);
+  scene.add(explosion);
+  setTimeout(()=>scene.remove(explosion),500);
 }
 
-// Draw explosions
-function drawExplosions(){
-  explosions.forEach(ex=>{
-    ctx.fillStyle = `rgba(255,170,0,${ex.alpha})`;
-    ctx.beginPath();
-    ctx.arc(ex.x, ex.y, ex.radius,0,Math.PI*2);
-    ctx.fill();
-    ex.alpha -= 0.05;
-  });
-  explosions = explosions.filter(ex=>ex.alpha>0);
-}
-
-// Animation
+// Animate
 function animate(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  drawEarth();
-  drawMeteors();
-  drawExplosions();
   requestAnimationFrame(animate);
+
+  earth.rotation.y += 0.001;
+
+  if(meteor){
+    meteor.position.y -= meteorVelocity * 0.1;
+    if(meteor.position.distanceTo(earth.position)<5){
+      createExplosion(meteor.position, meteor.scale.x*3);
+      scene.remove(meteor);
+      meteor = null;
+    }
+  }
+
+  controls.update();
+  renderer.render(scene,camera);
 }
 
 animate();
 
-// Handle resize
+// Resize
 window.addEventListener('resize', ()=>{
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
