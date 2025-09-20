@@ -1,17 +1,216 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>3D Meteor Simulator</title>
-  <link rel="stylesheet" href="body.css">
+<meta charset="UTF-8">
+<title>Space Meteor: Rising of Impact</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; font-family: Arial, sans-serif; background:black; color:white; }
+  #stars { position:absolute; width:100%; height:100%; z-index:0; }
+  .star { position:absolute; width:2px; height:2px; background:white; border-radius:50%; opacity:0.8; }
+
+  #meteor-container { position:absolute; top:8%; left:-60vw; width:60vw; height:18vw; z-index:2; }
+  #meteor-title { position:absolute; width:100%; height:100%; background: radial-gradient(circle at 30% 30%, orange, blue); clip-path: polygon(0 0, 90% 0, 100% 50%, 90% 100%, 0 100%); border-radius:50%/50%; box-shadow:0 0 4vw orange,0 0 6vw blue; }
+  #title { position:absolute; width:100%; height:100%; top:0; left:0; display:flex; flex-direction:column; justify-content:center; pointer-events:none; text-align:center; }
+  #main-title { font-size:clamp(40px,8vw,70px); color:#00ff00; text-shadow:0 0 1vw #00ff00; margin:0; }
+  #subtitle { font-size:clamp(18px,3vw,28px); color:#3399ff; margin-top:5px; }
+
+  #menu { display:none; position:absolute; width:100%; text-align:center; z-index:3; }
+  .btn { display:block; margin:1vw auto; padding:1vw 4vw; font-size:clamp(16px,2vw,24px); background:transparent; border:0.2vw solid #00d9ff; color:#00d9ff; border-radius:0.5vw; cursor:pointer; text-shadow:0 0 0.5vw #00d9ff; }
+  .btn:hover { background:#00d9ff; color:black; }
+
+  #credits { display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:black; text-align:center; padding-top:20%; z-index:4; font-size:clamp(18px,2.5vw,26px); opacity:0; }
+  .credit-line { margin:2vw 0; opacity:0; transition:opacity 2s; }
+
+  #map { display:none; height:100vh; width:100vw; z-index:1; position:relative; }
+  #sidebar { display:none; position:absolute; top:0; left:0; width:300px; background:rgba(0,0,0,0.8); color:white; font-family:Arial,sans-serif; padding:10px; z-index:5; transition:left 0.5s; overflow-y:auto; }
+  #sidebar h2 { text-align:center; margin:0; padding:10px; background:#222; border-bottom:2px solid red; }
+  .log { border-bottom:1px solid #444; padding:6px 0; font-size:14px; }
+  #defense { display:none; position:absolute; top:10px; right:10px; width:220px; background:rgba(0,0,0,0.8); padding:8px; font-size:14px; z-index:5; }
+  #facts { display:none; position:absolute; bottom:10px; right:10px; width:220px; background:rgba(255,255,255,0.9); color:black; padding:8px; font-size:14px; z-index:5; border-radius:4px; }
+</style>
 </head>
 <body>
-  <div id="ui">
-    <label>Meteor Size:</label>
-    <input type="range" id="size" min="0.5" max="5" step="0.1" value="1">
-    <label>Speed:</label>
-    <input type="range" id="speed" min="0.5" max="5" step="0.1" value="2">
+
+<div id="stars"></div>
+
+<div id="meteor-container">
+  <div id="meteor-title"></div>
+  <div id="title">
+    <h1 id="main-title">SPACE METEOR</h1>
+    <h2 id="subtitle">Rising of Impact</h2>
   </div>
-  <script type="module" src="main.js"></script>
+</div>
+
+<div id="menu">
+  <button class="btn" onclick="startGame()">▶ Play</button>
+  <button class="btn" onclick="showCredits()">📜 Credits</button>
+</div>
+
+<div id="credits">
+  <div class="credit-line">Owner: Mark O'Neal<br><i>"The leader of The Monarch."</i></div>
+  <div class="credit-line">Co-Owner: Islah<br><i>"A student of SMK Merbau."</i></div>
+  <div class="credit-line">Team: The Monarch (NASA Team)<br><i>"A fantastic duo of impact."</i></div>
+</div>
+
+<div id="map"></div>
+<div id="sidebar"><h2>Mission Log</h2><div id="log"></div><div id="deathCount">Deaths: 0</div></div>
+<div id="defense"></div>
+<div id="facts"></div>
+
+<audio id="ambient" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" loop></audio>
+<audio id="chime" src="https://www.soundjay.com/button/sounds/button-29.mp3"></audio>
+
+<script>
+const starsContainer = document.getElementById("stars");
+const meteorContainer = document.getElementById('meteor-container');
+const menu = document.getElementById("menu");
+const credits = document.getElementById("credits");
+const creditLines = document.querySelectorAll(".credit-line");
+const ambient = document.getElementById("ambient");
+const chime = document.getElementById("chime");
+const mapDiv = document.getElementById("map");
+const sidebar = document.getElementById("sidebar");
+const defenseDiv = document.getElementById("defense");
+const factsDiv = document.getElementById("facts");
+let deathCounter = 0;
+let factShown = false;
+
+ambient.volume=0.4;
+
+function createStars(num){
+  for(let i=0;i<num;i++){
+    let star = document.createElement("div");
+    star.className="star";
+    star.style.top=Math.random()*window.innerHeight+"px";
+    star.style.left=Math.random()*window.innerWidth+"px";
+    star.style.opacity=Math.random();
+    star.style.width=star.style.height=(Math.random()*2+1)+"px";
+    starsContainer.appendChild(star);
+  }
+}
+
+function easeOutQuad(t){return t*(2-t);}
+function meteorAnimation(callback){
+  let start=null;
+  let startX=-60*window.innerWidth/100;
+  let endX=window.innerWidth/2 - meteorContainer.offsetWidth/2;
+  let duration=2000;
+  function animate(time){
+    if(!start) start=time;
+    let t=(time-start)/duration;
+    if(t>1) t=1;
+    meteorContainer.style.left = (startX + (endX-startX)*easeOutQuad(t))+"px";
+    if(t<1) requestAnimationFrame(animate);
+    else if(callback) callback();
+  }
+  requestAnimationFrame(animate);
+}
+
+function showCredits(){
+  menu.style.display='none';
+  credits.style.display='block';
+  let delay=0;
+  creditLines.forEach(line=>{
+    setTimeout(()=>{ line.style.opacity=1; chime.play(); }, delay);
+    delay+=3000;
+  });
+  setTimeout(()=>{ credits.style.opacity=1; },200);
+  setTimeout(()=>{
+    credits.style.display='none';
+    credits.style.opacity=0;
+    creditLines.forEach(line=>line.style.opacity=0);
+    menu.style.display='block';
+  },12000);
+}
+
+let map;
+function initMap(){
+  mapDiv.style.display="block";
+  sidebar.style.display="block";
+  defenseDiv.style.display="block";
+
+  map = L.map('map').setView([20,0],2);
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution:'Tiles © Esri'
+  }).addTo(map);
+
+  map.on('click', function(e){
+    spawnMeteor(e.latlng);
+  });
+}
+
+function spawnMeteor(latlng){
+  let meteor = L.circleMarker([latlng.lat-20,latlng.lng], {radius:8,color:"orange",fillColor:"yellow",fillOpacity:1}).addTo(map);
+  let step=0;
+  let fall = setInterval(()=>{
+    step++;
+    meteor.setLatLng([latlng.lat-20+step,latlng.lng]);
+    if(step>=20){
+      clearInterval(fall);
+      map.removeLayer(meteor);
+      impact(latlng);
+    }
+  },50);
+}
+
+function impact(latlng){
+  let explosion = L.circle(latlng,{radius:500000,color:"red",weight:3,fillColor:"orange",fillOpacity:0.6}).addTo(map);
+  explosion.bindPopup("💥 Impact!").openPopup();
+
+  let casualties=Math.floor(Math.random()*500000)+10000;
+  deathCounter+=casualties;
+  document.getElementById("deathCount").innerText="Deaths: "+deathCounter.toLocaleString();
+
+  addLog(`💥 Impact at [${latlng.lat.toFixed(2)}, ${latlng.lng.toFixed(2)}] | Estimated casualties: ${casualties.toLocaleString()}`);
+
+  if(!factShown){
+    showFact(`Meteor struck at [${latlng.lat.toFixed(2)}, ${latlng.lng.toFixed(2)}]. Typical impact releases megatons of energy.`);
+    factShown=true;
+  }
+
+  if(Math.random()<0.5){
+    activateDefense();
+  }
+}
+
+function activateDefense(){
+  let strategy = ["Laser Interception","Nuclear Detonation","Kinetic Impact"].sort(()=>0.5-Math.random())[0];
+  defenseDiv.innerHTML = `<b>Defense Activated!</b><br>Strategy: ${strategy}<br>All meteors deflected in this attempt.`;
+  setTimeout(()=>{ defenseDiv.innerHTML=""; },4000);
+  addLog(`🛡 Defense system used: ${strategy}`);
+}
+
+function showFact(text){
+  factsDiv.innerText=text;
+  factsDiv.style.display="block";
+  setTimeout(()=>{ factsDiv.style.display="none"; },5000);
+}
+
+function addLog(msg){
+  let entry = document.createElement("div");
+  entry.className="log";
+  entry.innerHTML=msg;
+  document.getElementById("log").prepend(entry);
+  // auto remove after 2 seconds
+  setTimeout(()=>{ entry.remove(); },2000);
+}
+
+function startGame(){
+  menu.style.display='none';
+  meteorContainer.style.display='none';
+  initMap();
+}
+
+window.onload = ()=>{
+  ambient.play().catch(()=>{});
+  createStars(150);
+  meteorAnimation(()=>{
+    menu.style.top=(meteorContainer.offsetTop+meteorContainer.offsetHeight+10)+"px";
+    menu.style.display="block";
+  });
+};
+</script>
 </body>
 </html>
